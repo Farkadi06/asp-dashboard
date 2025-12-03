@@ -1,5 +1,6 @@
 export interface Ingestion {
   id: string;
+  bankCode?: string;
   fileName: string;
   status: "pending" | "processing" | "completed" | "failed";
   createdAt: string;

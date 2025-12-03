@@ -6,10 +6,11 @@ import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { sidebarConfig } from "@/lib/config/sidebar-config";
 import { SidebarGroup } from "./SidebarGroup";
+import { useSidebar } from "./SidebarContext";
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [isExpanded, setIsExpanded] = useState(true);
+  const { isExpanded, setIsExpanded } = useSidebar();
   const [openSection, setOpenSection] = useState<string | null>("PINNED");
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const navRef = useRef<HTMLElement>(null);
@@ -58,7 +59,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "h-screen border-r bg-white border-[rgba(0,0,0,0.08)] transition-all duration-200 flex-shrink-0",
+        "fixed left-0 top-0 bottom-0 z-40 h-screen border-r bg-white border-[rgba(0,0,0,0.08)] transition-all duration-200",
         isExpanded ? "w-64" : "w-16"
       )}
     >

@@ -38,3 +38,22 @@ export function generateKeyId(): string {
   return `key_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
+/**
+ * Gets all API keys from localStorage
+ */
+export function getApiKeys(): ApiKey[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+  const stored = localStorage.getItem("asp_api_keys");
+  if (!stored) {
+    return [];
+  }
+  try {
+    return JSON.parse(stored);
+  } catch (e) {
+    console.error("Failed to parse stored API keys", e);
+    return [];
+  }
+}
+

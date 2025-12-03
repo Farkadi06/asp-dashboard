@@ -57,7 +57,7 @@ export default function ApiKeysPage() {
   };
 
   return (
-    <>
+    <div className="px-12 py-8">
       <PageHeader
         title="API Keys"
         description="Manage your API keys for authentication"
@@ -87,6 +87,6 @@ export default function ApiKeysPage() {
         onOpenChange={setIsDialogOpen}
         onKeyCreated={handleCreateKey}
       />
-    </>
+    </div>
   );
 }

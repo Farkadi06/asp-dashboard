@@ -4,7 +4,7 @@ import { FileText } from "lucide-react";
 
 export default function IngestionsPage() {
   return (
-    <>
+    <div className="px-12 py-8">
       <PageHeader
         title="Ingestions"
         description="View and manage your PDF ingestions"
@@ -15,6 +15,6 @@ export default function IngestionsPage() {
         title="Coming soon"
         description="This section is under construction."
       />
-    </>
+    </div>
   );
 }
