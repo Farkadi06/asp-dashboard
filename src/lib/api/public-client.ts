@@ -6,6 +6,26 @@
  */
 
 /**
+ * Get the base URL for API requests
+ * Works in both client and server components
+ */
+function getBaseUrl(): string {
+  // In server components, we need an absolute URL
+  if (typeof window === "undefined") {
+    // Server-side: use environment variable or default to localhost
+    if (process.env.NEXT_PUBLIC_BASE_URL) {
+      return process.env.NEXT_PUBLIC_BASE_URL;
+    }
+    if (process.env.VERCEL_URL) {
+      return `https://${process.env.VERCEL_URL}`;
+    }
+    return "http://localhost:7000";
+  }
+  // Client-side: relative URLs work fine
+  return "";
+}
+
+/**
  * Bank type from public API
  * Note: This matches PUBLIC_API_REFERENCE.md
  */
@@ -215,7 +235,8 @@ export async function fetchAccounts(userRef?: string): Promise<PublicAccount[]> 
  * Fetch a single account by ID
  */
 export async function fetchAccount(accountId: string): Promise<PublicAccount> {
-  const res = await fetch(`/api/public/accounts/${accountId}`);
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/public/accounts/${accountId}`);
 
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
@@ -254,6 +275,42 @@ export interface PublicTransactionsResponse {
 }
 
 /**
+ * Enriched transaction type from public API
+ */
+export interface EnrichedTransaction {
+  id: string;
+  normalizedTransactionId: string | null;
+  date: string;
+  descriptionRaw: string;
+  descriptionClean: string | null;
+  category: string | null;
+  subcategory: string | null;
+  merchantName: string | null;
+  merchantNormalized: string | null;
+  salary: boolean;
+  recurring: boolean;
+  recurringGroupId: string | null;
+  direction: string; // INCOME or EXPENSE
+  amount: number;
+  amountAbs: number;
+  currency: string;
+  metadata: Record<string, any>;
+}
+
+/**
+ * Enriched transactions response with pagination
+ */
+export interface EnrichedTransactionsResponse {
+  accountId: string;
+  transactions: EnrichedTransaction[];
+  pagination: {
+    limit: number;
+    offset: number;
+    total: number;
+  };
+}
+
+/**
  * Fetch transactions for an account
  */
 export async function fetchTransactions(
@@ -283,6 +340,100 @@ export async function fetchTransactions(
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     const errorMessage = errorData.message || errorData.error || "Failed to fetch transactions";
+    throw new Error(errorMessage);
+  }
+
+  return res.json();
+}
+
+/**
+ * Filter options for enriched transactions
+ */
+export interface EnrichedFilters {
+  category?: string;
+  subcategory?: string;
+  merchant?: string;
+  direction?: string; // "INCOME" | "EXPENSE"
+  salary?: boolean;
+  recurring?: boolean;
+  startDate?: string; // ISO date
+  endDate?: string; // ISO date
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * Fetch enriched transactions for an account
+ * Fetches ALL enriched transactions (filtering happens client-side)
+ */
+export async function fetchEnrichedTransactions(
+  accountId: string
+): Promise<EnrichedTransactionsResponse> {
+  const baseUrl = getBaseUrl();
+  const url = `${baseUrl}/api/public/accounts/${accountId}/enriched-transactions`;
+  
+  try {
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      const errorMessage = errorData.message || errorData.error?.message || errorData.error || `Failed to fetch enriched transactions (${res.status} ${res.statusText})`;
+      throw new Error(errorMessage);
+    }
+
+    return res.json();
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to fetch enriched transactions: ${String(err)}`);
+  }
+}
+
+/**
+ * API Key metadata from public API
+ */
+export interface PublicApiKeyMetadata {
+  prefix: string;
+  createdAt: string;
+  lastUsed: string | null;
+}
+
+/**
+ * Regenerated API key response
+ */
+export interface RegeneratedApiKeyResponse {
+  fullKey: string;
+  prefix: string;
+  createdAt: string;
+}
+
+/**
+ * Get API key metadata
+ */
+export async function getApiKeyMetadata(): Promise<PublicApiKeyMetadata> {
+  const res = await fetch("/api/public/api-key");
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const errorMessage = errorData.message || errorData.error || "Failed to fetch API key metadata";
+    throw new Error(errorMessage);
+  }
+
+  return res.json();
+}
+
+/**
+ * Regenerate API key
+ */
+export async function regenerateApiKey(): Promise<RegeneratedApiKeyResponse> {
+  const res = await fetch("/api/public/api-key/regenerate", {
+    method: "POST",
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const errorMessage = errorData.message || errorData.error || "Failed to regenerate API key";
     throw new Error(errorMessage);
   }
 

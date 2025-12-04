@@ -823,6 +823,192 @@ curl -X GET "https://api.asp-platform.com/v1/accounts/a1b2c3d4-e5f6-4789-a012-34
 
 ---
 
+#### Get Account Enriched Transactions
+
+Get paginated enriched transactions for an account with full enrichment data including metadata, fuzzy matching scores, and advanced categorization.
+
+**Endpoint:** `GET /v1/accounts/{accountId}/enriched-transactions`
+
+**Authentication:** Required
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `accountId` | UUID | Account ID |
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `startDate` | Date (ISO) | No | - | Filter transactions from this date (inclusive) |
+| `endDate` | Date (ISO) | No | - | Filter transactions until this date (inclusive) |
+| `limit` | Integer | No | 100 | Maximum number of transactions to return (max 1000) |
+| `offset` | Integer | No | 0 | Number of transactions to skip |
+| `category` | String | No | - | Filter by category (exact match) |
+| `subcategory` | String | No | - | Filter by subcategory (exact match) |
+| `merchant` | String | No | - | Filter by normalized merchant name (exact match) |
+| `direction` | String | No | - | Filter by direction: `INCOME` or `EXPENSE` |
+| `salary` | Boolean | No | - | Filter by salary transactions (`true` or `false`) |
+| `recurring` | Boolean | No | - | Filter by recurring transactions (`true` or `false`) |
+
+**Request:**
+```bash
+curl -X GET "https://api.asp-platform.com/v1/accounts/a1b2c3d4-e5f6-4789-a012-3456789abcde/enriched-transactions?startDate=2025-11-01&limit=50&category=Subscriptions&direction=EXPENSE" \
+  -H "X-Api-Key: asp_live_sk_abc123xyz_..."
+```
+
+**Response:** `200 OK`
+
+```json
+{
+  "accountId": "a1b2c3d4-e5f6-4789-a012-3456789abcde",
+  "transactions": [
+    {
+      "id": "e1b2c3d4-e5f6-4789-a012-3456789abcde",
+      "normalizedTransactionId": "t1b2c3d4-e5f6-4789-a012-3456789abcde",
+      "date": "2025-11-15",
+      "descriptionRaw": "08/0908/09 PAIEMENT INTERNET INTERNATIONAL CARTE0332 APPLE.COM BI 28,04",
+      "descriptionClean": "PAIEMENT INTERNET APPLE.COM",
+      "category": "Subscriptions",
+      "subcategory": "Apple",
+      "merchantName": "Apple",
+      "merchantNormalized": "apple",
+      "salary": false,
+      "recurring": true,
+      "recurringGroupId": "r1b2c3d4-e5f6-4789-a012-3456789abcde",
+      "direction": "EXPENSE",
+      "amount": -28.04,
+      "amountAbs": 28.04,
+      "currency": "MAD",
+      "metadata": {
+        "fuzzy_used": false,
+        "merchant_dict_used": true,
+        "merchant_canonical": "apple",
+        "merchant_dict_display": "Apple",
+        "merchant_normalized_raw": "apple",
+        "category_pattern": "APPLE",
+        "category_confidence": "HIGH",
+        "category_priority": 100
+      }
+    },
+    {
+      "id": "e2b2c3d4-e5f6-4789-a012-3456789abcde",
+      "normalizedTransactionId": "t2b2c3d4-e5f6-4789-a012-3456789abcde",
+      "date": "2025-11-14",
+      "descriptionRaw": "GLOVO PZ 45,50",
+      "descriptionClean": "GLOVO PZ",
+      "category": "Food Delivery",
+      "subcategory": "Glovo",
+      "merchantName": "Glovo",
+      "merchantNormalized": "glovo",
+      "salary": false,
+      "recurring": false,
+      "recurringGroupId": null,
+      "direction": "EXPENSE",
+      "amount": -45.50,
+      "amountAbs": 45.50,
+      "currency": "MAD",
+      "metadata": {
+        "fuzzy_used": false,
+        "merchant_dict_used": true,
+        "merchant_canonical": "glovo",
+        "merchant_dict_display": "Glovo",
+        "merchant_normalized_raw": "glovo",
+        "category_pattern": "GLOVO",
+        "category_confidence": "HIGH",
+        "category_priority": 100
+      }
+    }
+  ],
+  "pagination": {
+    "limit": 50,
+    "offset": 0,
+    "total": 125
+  }
+}
+```
+
+**Response Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `accountId` | UUID | Account ID |
+| `transactions` | Array | List of enriched transactions |
+| `pagination` | Object | Pagination information |
+
+**Enriched Transaction Object:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Enriched transaction identifier |
+| `normalizedTransactionId` | UUID | Reference to normalized transaction |
+| `date` | String | Transaction date (ISO 8601 date) |
+| `descriptionRaw` | String | Original description from statement |
+| `descriptionClean` | String \| null | Cleaned description |
+| `category` | String \| null | Transaction category |
+| `subcategory` | String \| null | Transaction subcategory |
+| `merchantName` | String \| null | Display merchant name (from dictionary) |
+| `merchantNormalized` | String \| null | Normalized merchant identifier |
+| `salary` | Boolean | Whether this is a salary transaction |
+| `recurring` | Boolean | Whether this is a recurring transaction |
+| `recurringGroupId` | UUID \| null | Group ID for recurring transactions |
+| `direction` | String | Transaction direction: `INCOME` or `EXPENSE` |
+| `amount` | Number | Transaction amount (signed: negative for debits, positive for credits) |
+| `amountAbs` | Number | Absolute transaction amount |
+| `currency` | String | Currency code |
+| `metadata` | Object | Enrichment metadata (see Metadata Fields below) |
+
+**Metadata Fields:**
+
+The `metadata` object contains enrichment processing information:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `fuzzy_used` | Boolean | Whether fuzzy matching was used |
+| `fuzzy_score` | Number | Fuzzy matching score (0.0-1.0) if used |
+| `fuzzy_candidate` | String | Fuzzy matched merchant candidate |
+| `fuzzy_confidence` | String | Fuzzy match confidence: `HIGH`, `MEDIUM`, `LOW` |
+| `merchant_dict_used` | Boolean | Whether merchant dictionary was used |
+| `merchant_canonical` | String | Canonical merchant identifier from dictionary |
+| `merchant_dict_display` | String | Display name from dictionary |
+| `merchant_normalized_raw` | String | Raw normalized merchant before dictionary |
+| `category_pattern` | String | Category rule pattern that matched |
+| `category_confidence` | String | Category confidence: `HIGH`, `MEDIUM`, `LOW` |
+| `category_priority` | Number | Category rule priority |
+
+**Notes:**
+- Transactions are ordered by date (newest first)
+- Date filters are inclusive
+- All filters use exact match (case-sensitive)
+- Maximum `limit` is 1000
+- `metadata` contains processing details that may vary per transaction
+- Use this endpoint when you need full enrichment data including fuzzy matching scores, dictionary usage, and advanced categorization
+
+**Error Responses:**
+
+**404 Not Found** - Account not found
+```json
+{
+  "error": {
+    "code": "ACCOUNT_NOT_FOUND",
+    "message": "Account not found"
+  }
+}
+```
+
+**400 Bad Request** - Invalid parameters
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "startDate must be before or equal to endDate"
+  }
+}
+```
+
+---
+
 #### Get Account Snapshots
 
 Get balance snapshots for an account.
@@ -1301,6 +1487,26 @@ export interface Transaction {
   merchant: string | null;
 }
 
+export interface EnrichedTransaction {
+  id: UUID;
+  normalizedTransactionId: UUID;
+  date: string; // ISO 8601 date
+  descriptionRaw: string;
+  descriptionClean: string | null;
+  category: string | null;
+  subcategory: string | null;
+  merchantName: string | null;
+  merchantNormalized: string | null;
+  salary: boolean;
+  recurring: boolean;
+  recurringGroupId: UUID | null;
+  direction: 'INCOME' | 'EXPENSE';
+  amount: number; // Signed: negative for debits, positive for credits
+  amountAbs: number;
+  currency: string;
+  metadata: Record<string, any>; // Enrichment metadata
+}
+
 export interface PaginationInfo {
   limit: number;
   offset: number;
@@ -1310,6 +1516,12 @@ export interface PaginationInfo {
 export interface PaginatedTransactions {
   accountId: UUID;
   transactions: Transaction[];
+  pagination: PaginationInfo;
+}
+
+export interface PaginatedEnrichedTransactions {
+  accountId: UUID;
+  transactions: EnrichedTransaction[];
   pagination: PaginationInfo;
 }
 
@@ -1387,6 +1599,7 @@ export interface PingResponse {
 | `GET` | `/v1/accounts` | List accounts | Required |
 | `GET` | `/v1/accounts/{id}` | Get account | Required |
 | `GET` | `/v1/accounts/{id}/transactions` | Get transactions | Required |
+| `GET` | `/v1/accounts/{id}/enriched-transactions` | Get enriched transactions | Required |
 | `GET` | `/v1/accounts/{id}/snapshots` | Get snapshots | Required |
 | `POST` | `/v1/api-keys` | Create API key | Required |
 | `GET` | `/v1/api-keys` | List API keys | Required |

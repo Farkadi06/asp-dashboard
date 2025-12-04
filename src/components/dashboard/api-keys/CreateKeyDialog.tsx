@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Copy, Check } from "lucide-react";
 import {
   Dialog,
@@ -11,18 +12,22 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { generateApiKey } from "@/lib/utils/api-keys";
+import { toast } from "sonner";
 
 interface CreateKeyDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onKeyCreated: (key: string) => void;
+  redirectToAccess?: boolean;
 }
 
 export function CreateKeyDialog({
   open,
   onOpenChange,
   onKeyCreated,
+  redirectToAccess = false,
 }: CreateKeyDialogProps) {
+  const router = useRouter();
   const [rawKey, setRawKey] = useState<string>("");
   const [copied, setCopied] = useState(false);
 
@@ -52,6 +57,10 @@ export function CreateKeyDialog({
     if (rawKey) {
       onKeyCreated(rawKey);
       handleOpenChange(false);
+      if (redirectToAccess) {
+        toast.success("Your API key is ready!");
+        router.push("/dashboard/api-keys/access");
+      }
     }
   };
 

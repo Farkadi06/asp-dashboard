@@ -5,67 +5,39 @@ import { PageHeader } from "@/components/dashboard/layout/PageHeader";
 import { OnboardingCard } from "@/components/dashboard/onboarding";
 import { EmptyStateCard } from "@/components/dashboard/cards/EmptyStateCard";
 import { LayoutDashboard } from "lucide-react";
-import { ApiKey } from "@/lib/utils/api-keys";
-import { Ingestion } from "@/lib/types/ingestion";
 import { getIngestionCount } from "@/lib/utils/sandbox";
-
-const STORAGE_KEY = "asp_api_keys";
-const INGESTION_STORAGE_KEY = "asp_mock_ingestions";
+import { getApiKeyMetadata } from "@/lib/api/public-client";
 
 export default function DashboardPage() {
-  const [apiKeyCount, setApiKeyCount] = useState(0);
+  const [hasApiKey, setHasApiKey] = useState(false);
   const [ingestionCount, setIngestionCount] = useState(0);
+  const [isLoadingApiKey, setIsLoadingApiKey] = useState(true);
 
-  // Load API key count from localStorage
+  // Load API key status from API
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        try {
-          const keys: ApiKey[] = JSON.parse(stored);
-          setApiKeyCount(keys.length);
-        } catch (e) {
-          console.error("Failed to parse stored API keys", e);
-        }
+    async function checkApiKey() {
+      try {
+        await getApiKeyMetadata();
+        setHasApiKey(true);
+      } catch (err) {
+        // API key doesn't exist or error
+        setHasApiKey(false);
+      } finally {
+        setIsLoadingApiKey(false);
       }
-
-      // Load ingestion count
-      setIngestionCount(getIngestionCount());
     }
 
-    // Listen for storage changes (when keys are added/removed on other tabs)
-    const handleStorageChange = () => {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        try {
-          const keys: ApiKey[] = JSON.parse(stored);
-          setApiKeyCount(keys.length);
-        } catch (e) {
-          // Ignore errors
-        }
-      } else {
-        setApiKeyCount(0);
-      }
+    checkApiKey();
+    // Load ingestion count
+    setIngestionCount(getIngestionCount());
 
-      // Update ingestion count
-      setIngestionCount(getIngestionCount());
-    };
-
-    // Listen for custom event (same tab updates)
-    const handleApiKeysChanged = (e: CustomEvent<ApiKey[]>) => {
-      setApiKeyCount(e.detail.length);
-    };
-
+    // Listen for ingestion changes
     const handleIngestionsChanged = (e: CustomEvent<number>) => {
       setIngestionCount(e.detail);
     };
 
-    window.addEventListener("storage", handleStorageChange);
-    window.addEventListener("apiKeysChanged", handleApiKeysChanged as EventListener);
     window.addEventListener("ingestionsChanged", handleIngestionsChanged as EventListener);
     return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("apiKeysChanged", handleApiKeysChanged as EventListener);
       window.removeEventListener("ingestionsChanged", handleIngestionsChanged as EventListener);
     };
   }, []);
@@ -75,7 +47,8 @@ export default function DashboardPage() {
       <PageHeader title="Dashboard" />
 
       <OnboardingCard
-        apiKeyCount={apiKeyCount}
+        hasApiKey={hasApiKey}
+        isLoadingApiKey={isLoadingApiKey}
         ingestionCount={ingestionCount}
       />
 

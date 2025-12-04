@@ -62,13 +62,32 @@ export async function GET(
     // Log transaction counts for debugging
     if (data && typeof data === 'object' && 'transactions' in data && Array.isArray((data as any).transactions)) {
       const transactions = (data as any).transactions;
-      const incomeCount = transactions.filter((tx: any) => tx.direction === "INCOME" || (!tx.direction && tx.amount > 0)).length;
-      const expenseCount = transactions.filter((tx: any) => tx.direction === "EXPENSE" || (!tx.direction && tx.amount < 0)).length;
+      
+      // Check what direction values we're actually getting
+      const directionValues = transactions.map((tx: any) => tx.direction).filter((v: any) => v != null);
+      const uniqueDirections = [...new Set(directionValues)];
+      
+      // Count with fallback logic
+      const incomeCount = transactions.filter((tx: any) => {
+        const dir = tx.direction?.toUpperCase();
+        return dir === "INCOME" || (!dir && tx.amount > 0);
+      }).length;
+      const expenseCount = transactions.filter((tx: any) => {
+        const dir = tx.direction?.toUpperCase();
+        return dir === "EXPENSE" || (!dir && tx.amount < 0);
+      }).length;
+      
       console.log("[Enriched Transactions] Response:", {
         total: transactions.length,
         income: incomeCount,
         expense: expenseCount,
         pagination: (data as any).pagination,
+        directionValues: uniqueDirections,
+        sampleTransaction: transactions[0] ? {
+          direction: transactions[0].direction,
+          amount: transactions[0].amount,
+          hasDirection: !!transactions[0].direction,
+        } : null,
       });
     }
     

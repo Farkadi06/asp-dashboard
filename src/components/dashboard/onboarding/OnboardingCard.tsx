@@ -6,22 +6,25 @@ import { cn } from "@/lib/utils";
 import { StepItem } from "./StepItem";
 
 interface OnboardingCardProps {
-  apiKeyCount: number;
+  hasApiKey: boolean;
+  isLoadingApiKey: boolean;
   ingestionCount: number;
 }
 
 export function OnboardingCard({
-  apiKeyCount,
+  hasApiKey,
+  isLoadingApiKey,
   ingestionCount,
 }: OnboardingCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const steps = [
     {
-      completed: apiKeyCount > 0,
+      completed: hasApiKey,
+      isLoading: isLoadingApiKey,
       title: "Create your first API Key",
       description: "Generate a secret key to start calling the ASP APIs.",
-      href: "/dashboard/api-keys",
+      href: "/dashboard/api-keys/access",
     },
     {
       completed: ingestionCount > 0,
@@ -62,6 +65,7 @@ export function OnboardingCard({
             <StepItem
               key={index}
               completed={step.completed}
+              isLoading={step.isLoading}
               title={step.title}
               description={step.description}
               href={step.href}

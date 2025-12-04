@@ -5,6 +5,7 @@ import { Check } from "lucide-react";
 
 interface StepItemProps {
   completed: boolean;
+  isLoading?: boolean;
   title: string;
   description: string;
   href: string;
@@ -12,6 +13,7 @@ interface StepItemProps {
 
 export function StepItem({
   completed,
+  isLoading = false,
   title,
   description,
   href,
@@ -23,7 +25,9 @@ export function StepItem({
     >
       {/* Status Icon */}
       <div className="flex-shrink-0 mt-0.5">
-        {completed ? (
+        {isLoading ? (
+          <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+        ) : completed ? (
           <Check className="w-4 h-4 text-green-600" />
         ) : (
           <div className="w-4 h-4 border border-gray-400 rounded-full flex-none" />

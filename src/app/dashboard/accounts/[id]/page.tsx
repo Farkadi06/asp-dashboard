@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { PageHeader } from "@/components/dashboard/layout/PageHeader";
 import { fetchAccount, fetchTransactions, type PublicAccount, type PublicTransaction } from "@/lib/api/public-client";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { RawTransactionsTable } from "@/components/raw-transactions/RawTransactionsTable";
 
 export default function AccountDetailPage() {
   const params = useParams();
@@ -47,11 +49,7 @@ export default function AccountDetailPage() {
         setIsLoadingTransactions(true);
         setTransactionsError(null);
         const data = await fetchTransactions(accountId);
-        // Sort by date descending (newest first)
-        const sorted = [...data.transactions].sort((a, b) => 
-          new Date(b.date).getTime() - new Date(a.date).getTime()
-        );
-        setTransactions(sorted);
+        setTransactions(data.transactions);
       } catch (err) {
         setTransactionsError(err instanceof Error ? err : new Error("Failed to load transactions"));
         setTransactions([]);
@@ -153,7 +151,14 @@ export default function AccountDetailPage() {
 
         {/* Transactions Section */}
         <div className="bg-white border border-gray-200 shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Transactions</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Transactions</h2>
+            <Link href={`/dashboard/accounts/${accountId}/enriched`}>
+              <Button className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 transition">
+                ✨ View Enriched Transactions
+              </Button>
+            </Link>
+          </div>
 
           {isLoadingTransactions && (
             <div className="flex items-center justify-center py-8">
@@ -175,53 +180,7 @@ export default function AccountDetailPage() {
           )}
 
           {!isLoadingTransactions && !transactionsError && transactions.length > 0 && (
-            <div className="border border-gray-200">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Merchant</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Type</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {transactions.map((transaction) => (
-                    <TableRow key={transaction.id}>
-                      <TableCell className="text-sm">
-                        {new Date(transaction.date).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {transaction.merchant || transaction.description}
-                      </TableCell>
-                      <TableCell
-                        className={`text-sm font-medium ${
-                          transaction.amount > 0
-                            ? "text-green-600"
-                            : transaction.amount < 0
-                            ? "text-red-600"
-                            : "text-gray-600"
-                        }`}
-                      >
-                        {transaction.amount > 0 ? "+" : ""}
-                        {transaction.amount.toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}{" "}
-                        {transaction.currency}
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-600">
-                        {transaction.category || "—"}
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-600">
-                        {transaction.rawDescription ? "CARD" : "—"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <RawTransactionsTable transactions={transactions} />
           )}
         </div>
       </div>

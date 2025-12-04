@@ -86,6 +86,7 @@ export default function ApiKeysPage() {
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         onKeyCreated={handleCreateKey}
+        redirectToAccess={true}
       />
     </div>
   );
