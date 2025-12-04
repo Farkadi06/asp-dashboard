@@ -1,24 +1,30 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
-import { fetchBanks, type PublicBank } from "@/lib/api/public-client";
+import { fetchBanks, createBankConnection, type PublicBank } from "@/lib/api/public-client";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface InstitutionBrowserProps {
   selectedBank: string | null;
   onSelect: (bankId: string) => void;
+  onConnectionCreated?: (connectionId: string) => void;
 }
 
 export function InstitutionBrowser({
   selectedBank,
   onSelect,
+  onConnectionCreated,
 }: InstitutionBrowserProps) {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [banks, setBanks] = useState<PublicBank[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [isCreatingConnection, setIsCreatingConnection] = useState<string | null>(null);
 
   // Load banks on mount
   useEffect(() => {
@@ -91,19 +97,45 @@ export function InstitutionBrowser({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredBanks.map((bank) => {
               const isSelected = selectedBank === bank.id;
+              const isCreating = isCreatingConnection === bank.id;
               return (
                 <button
                   key={bank.id}
-                  onClick={() => onSelect(bank.id)}
+                  onClick={async () => {
+                    if (isCreating) return;
+                    
+                    try {
+                      setIsCreatingConnection(bank.id);
+                      const connection = await createBankConnection(bank.id);
+                      onSelect(bank.id);
+                      // Notify parent component of connection creation
+                      if (onConnectionCreated) {
+                        onConnectionCreated(connection.connectionId);
+                      }
+                      toast.success("Bank connection created successfully");
+                      // Navigate to sandbox page (we're already there, but this ensures state is updated)
+                      router.refresh();
+                    } catch (err) {
+                      const errorMessage = err instanceof Error ? err.message : "Failed to create bank connection";
+                      toast.error(errorMessage);
+                      setError(err instanceof Error ? err : new Error(errorMessage));
+                    } finally {
+                      setIsCreatingConnection(null);
+                    }
+                  }}
+                  disabled={isCreating}
                   className={cn(
                     "border p-4 flex items-center gap-3 cursor-pointer transition-colors text-left",
                     "bg-white",
+                    isCreating && "opacity-50 cursor-not-allowed",
                     isSelected
                       ? "border-blue-600 bg-blue-50"
                       : "border-gray-200 hover:bg-gray-50"
                   )}
                 >
-                  {bank.logoUrl ? (
+                  {isCreating ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                  ) : bank.logoUrl ? (
                     <img
                       src={bank.logoUrl}
                       alt={bank.name}

@@ -128,6 +128,33 @@ export class AspServerClient {
       }>
     >("/banks");
   }
+
+  /**
+   * Generic GET request
+   */
+  async get<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: "GET" });
+  }
+
+  /**
+   * Generic POST request
+   */
+  async post<T>(endpoint: string, body?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: "POST",
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  }
+
+  /**
+   * POST request with FormData (for file uploads)
+   */
+  async postFormData<T>(endpoint: string, formData: FormData): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: "POST",
+      body: formData,
+    });
+  }
 }
 
 /**
