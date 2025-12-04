@@ -1,30 +1,26 @@
-"use client";
-
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { authStore } from "@/lib/auth-store";
+import { redirect } from "next/navigation";
+import { fetchSession, fetchTenantMe, type TenantMeResponse } from "@/lib/api/dashboard-client";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 
-export default function DashboardLayout({
+// Force dynamic rendering - dashboard requires authentication
+export const dynamic = "force-dynamic";
+
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
+  // Check session authentication
+  const session = await fetchSession();
 
-  useEffect(() => {
-    // For Step 2 (UI-only): Auto-set placeholder token in development
-    // This allows testing the UI without backend authentication
-    if (typeof window !== "undefined" && !authStore.isAuthenticated()) {
-      // Check if we're in development mode (Next.js sets this)
-      const isDev = process.env.NODE_ENV === "development";
-      if (isDev) {
-        authStore.setToken("dev-placeholder-token-step-2");
-      } else {
-        router.push("/login");
-      }
-    }
-  }, [router]);
+  // Redirect to login if not authenticated
+  if (!session.authenticated) {
+    redirect("/login");
+  }
 
+  // Optionally fetch tenant info (don't fail if null)
+  const tenant = await fetchTenantMe();
+
+  // Render dashboard layout
   return <DashboardShell>{children}</DashboardShell>;
 }

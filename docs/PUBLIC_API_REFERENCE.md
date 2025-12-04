@@ -63,6 +63,13 @@ Host: api.asp-platform.com
 X-Api-Key: asp_live_sk_abc123xyz_4f8a9b2c3d1e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2
 ```
 
+### Tenant Resolution
+
+**Important:** The tenant ID is **automatically derived** from the authenticated API key. You **cannot** specify a different tenant ID in request bodies. All requests are scoped to the tenant associated with the API key.
+
+**Deprecated Fields:**
+- `CreateApiKeyRequest.tenantId` - **Deprecated** and ignored. Tenant ID is derived from the API key used for authentication.
+
 ### Authentication Errors
 
 **Status:** `401 Unauthorized`
@@ -1074,21 +1081,24 @@ Create a new API key for the tenant.
 
 ```json
 {
-  "tenantId": "550e8400-e29b-41d4-a716-446655440000",
   "displayName": "Production API Key",
   "scopes": ["ingestions:write", "accounts:read"],
   "sandbox": false
 }
 ```
 
+**Note:** The `tenantId` field is deprecated and ignored. It is automatically derived from the authenticated API key.
+
 **Request Fields:**
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `tenantId` | UUID | Yes | Tenant ID |
+| `tenantId` | UUID | No (deprecated) | **Deprecated** - Tenant ID is automatically derived from the authenticated API key. This field is ignored and will be removed in v2. |
 | `displayName` | String | Yes | Human-readable name for the key |
 | `scopes` | Array[String] | Yes | Permissions (currently all keys have full access) |
 | `sandbox` | Boolean | No | Whether this is a sandbox key (default: `false`) |
+
+**⚠️ Important:** The `tenantId` field is **deprecated** and ignored. The tenant ID is automatically derived from the authenticated API key (`X-Api-Key` header). You can omit this field or it will be ignored if provided.
 
 **Request:**
 ```bash
@@ -1096,12 +1106,13 @@ curl -X POST "https://api.asp-platform.com/v1/api-keys" \
   -H "X-Api-Key: asp_live_sk_abc123xyz_..." \
   -H "Content-Type: application/json" \
   -d '{
-    "tenantId": "550e8400-e29b-41d4-a716-446655440000",
     "displayName": "Production API Key",
     "scopes": ["ingestions:write", "accounts:read"],
     "sandbox": false
   }'
 ```
+
+**Note:** The `tenantId` in the request body is ignored. The tenant ID is resolved from the `X-Api-Key` header automatically.
 
 **Response:** `201 Created`
 
@@ -1130,10 +1141,12 @@ curl -X POST "https://api.asp-platform.com/v1/api-keys" \
 {
   "error": {
     "code": "VALIDATION_ERROR",
-    "message": "tenantId is required"
+    "message": "displayName is required"
   }
 }
 ```
+
+**Note:** `tenantId` is no longer required and is ignored if provided. The tenant ID is derived from the authenticated API key.
 
 ---
 
@@ -1540,7 +1553,8 @@ export interface ApiKey {
 }
 
 export interface CreateApiKeyRequest {
-  tenantId: UUID;
+  /** @deprecated Tenant ID is automatically derived from the authenticated API key. This field is ignored. */
+  tenantId?: UUID;
   displayName: string;
   scopes: string[];
   sandbox?: boolean;
