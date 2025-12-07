@@ -24,7 +24,7 @@ export function OnboardingCard({
       isLoading: isLoadingApiKey,
       title: "Create your first API Key",
       description: "Generate a secret key to start calling the ASP APIs.",
-      href: "/dashboard/api-keys/access",
+      href: "/dashboard/api-keys",
     },
     {
       completed: ingestionCount > 0,

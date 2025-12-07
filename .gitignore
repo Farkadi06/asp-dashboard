@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# API key cache (contains sensitive data)
+.api-keys-cache.json

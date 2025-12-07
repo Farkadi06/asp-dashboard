@@ -3,7 +3,7 @@ import { getServerAspClient } from "@/lib/api/server-client";
 
 export async function POST(request: Request) {
   try {
-    const client = getServerAspClient();
+    const client = await getServerAspClient();
     const body = await request.json();
     const { bankId, userRef } = body;
 

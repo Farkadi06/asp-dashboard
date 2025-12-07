@@ -38,7 +38,18 @@ export default function ApiKeyAccessPage() {
       const data = await getApiKeyMetadata();
       setMetadata(data);
     } catch (err) {
-      setError(err instanceof Error ? err : new Error("Failed to load API key metadata"));
+      // Handle error properly - extract message from various error types
+      let errorMessage = "Failed to load API key metadata";
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === "string") {
+        errorMessage = err;
+      } else if (err && typeof err === "object" && "message" in err) {
+        errorMessage = String(err.message);
+      } else if (err && typeof err === "object" && "error" in err) {
+        errorMessage = String(err.error);
+      }
+      setError(new Error(errorMessage));
       setMetadata(null);
     } finally {
       setIsLoading(false);
@@ -111,7 +122,9 @@ export default function ApiKeyAccessPage() {
       <div className="px-12 py-8">
         <PageHeader title="API Key Access" />
         <div className="bg-red-50 border border-red-200 p-6 mt-6">
-          <p className="text-sm text-red-800">{error.message}</p>
+          <p className="text-sm text-red-800">
+            {error?.message || String(error) || "Failed to load API key metadata"}
+          </p>
           <Button onClick={loadMetadata} className="mt-4" variant="outline">
             Retry
           </Button>

@@ -8,18 +8,24 @@
  * It is designed for server components and API routes only.
  */
 
+import { cookies } from "next/headers";
+
 /**
  * Get the base URL for dashboard API calls
- * Reads from ASP_CORE_BASE_URL environment variable
+ * Prefers NEXT_PUBLIC_ASP_CORE_URL, falls back to ASP_CORE_BASE_URL
+ * 
+ * @returns Base URL string or null if not configured
  */
-export function getDashboardBaseUrl(): string {
-  const url = process.env.ASP_CORE_BASE_URL;
+export function getDashboardBaseUrl(): string | null {
+  const url = process.env.NEXT_PUBLIC_ASP_CORE_URL || process.env.ASP_CORE_BASE_URL;
   
   if (!url) {
-    throw new Error(
-      "Missing ASP_CORE_BASE_URL environment variable. " +
-      "Please set it in your .env.local file (e.g., ASP_CORE_BASE_URL=http://localhost:8080)"
+    console.warn(
+      "[DashboardClient] Missing NEXT_PUBLIC_ASP_CORE_URL/ASP_CORE_BASE_URL. " +
+      "Set it in .env.local (e.g., NEXT_PUBLIC_ASP_CORE_URL=http://localhost:8080). " +
+      "Authentication checks will return unauthenticated."
     );
+    return null;
   }
   
   // Remove trailing slash if present
@@ -39,38 +45,68 @@ export interface SessionResponse {
 /**
  * Fetch current session information
  * 
- * Calls: GET /auth/session/me
+ * Server-side: Directly calls backend with cookies from request
+ * Client-side: Uses proxy route /api/auth/session
  * 
  * @returns SessionResponse with authenticated status and user info
  */
 export async function fetchSession(): Promise<SessionResponse> {
-  const baseUrl = getDashboardBaseUrl();
-  const url = `${baseUrl}/auth/session/me`;
-  
-  try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-    });
-    
-    // If 401, return unauthenticated
-    if (response.status === 401) {
+  const isServer = typeof window === "undefined";
+
+  // On server: directly call backend with cookies from the request
+  if (isServer) {
+    const baseUrl = getDashboardBaseUrl();
+    if (!baseUrl) {
       return { authenticated: false };
     }
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch session: ${response.status} ${response.statusText}`);
+
+    // Extract cookie from the browser request (Next.js server receives it)
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get("asp_session")?.value;
+
+    if (!sessionCookie) {
+      return { authenticated: false };
     }
-    
-    return await response.json();
-  } catch (error) {
-    console.error("[DashboardClient] Failed to fetch session:", error);
-    // Return unauthenticated on error
+
+    try {
+      const res = await fetch(`${baseUrl}/auth/session/me`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: `asp_session=${sessionCookie}`,
+        },
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        return { authenticated: false };
+      }
+
+      return await res.json();
+    } catch (error) {
+      console.error("[DashboardClient] Failed to fetch session:", error);
+      return { authenticated: false };
+    }
+  }
+
+  // On client: use proxy route
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:7000";
+  const url = `${base}/api/auth/session`;
+
+  let res;
+  try {
+    res = await fetch(url, {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    });
+  } catch (err) {
+    console.error("[DashboardClient] Failed to fetch session:", err);
     return { authenticated: false };
   }
+
+  if (!res.ok) return { authenticated: false };
+  return res.json();
 }
 
 /**
@@ -91,31 +127,44 @@ export interface TenantMeResponse {
  * 
  * Calls: GET /internal/tenant/me
  * 
- * @returns TenantMeResponse or null if not authenticated
+ * @returns TenantMeResponse or null if not authenticated or base URL not configured
  */
 export async function fetchTenantMe(): Promise<TenantMeResponse | null> {
   const baseUrl = getDashboardBaseUrl();
+  
+  // If base URL is not configured, return null
+  if (!baseUrl) {
+    return null;
+  }
+
+  // Extract cookie from browser → forward to backend
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get("asp_session")?.value;
+
+  if (!sessionCookie) {
+    return null;
+  }
+
   const url = `${baseUrl}/internal/tenant/me`;
   
   try {
-    const response = await fetch(url, {
+    const res = await fetch(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
+        Cookie: `asp_session=${sessionCookie}`,
       },
-      credentials: "include",
     });
     
-    // If 401, return null (not authenticated)
-    if (response.status === 401) {
+    if (res.status === 401) {
       return null;
     }
     
-    if (!response.ok) {
-      throw new Error(`Failed to fetch tenant: ${response.status} ${response.statusText}`);
+    if (!res.ok) {
+      return null;
     }
     
-    return await response.json();
+    return await res.json();
   } catch (error) {
     console.error("[DashboardClient] Failed to fetch tenant:", error);
     return null;
@@ -131,16 +180,28 @@ export async function fetchTenantMe(): Promise<TenantMeResponse | null> {
  */
 export async function logout(): Promise<void> {
   const baseUrl = getDashboardBaseUrl();
+  
+  // If base URL is not configured, silently return (nothing to logout)
+  if (!baseUrl) {
+    console.warn("[DashboardClient] Cannot logout: ASP_CORE_BASE_URL/NEXT_PUBLIC_ASP_CORE_URL not configured");
+    return;
+  }
+  
   const url = `${baseUrl}/auth/logout`;
   
   try {
     const response = await fetch(url, {
       method: "POST",
-      credentials: "include",
+      credentials: "include", // include cookies
     });
     
     if (!response.ok) {
       throw new Error(`Failed to logout: ${response.status} ${response.statusText}`);
+    }
+
+    // If running in browser, redirect to login after logout
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
     }
   } catch (error) {
     console.error("[DashboardClient] Failed to logout:", error);

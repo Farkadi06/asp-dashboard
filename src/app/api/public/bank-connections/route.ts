@@ -3,7 +3,7 @@ import { getServerAspClient } from "@/lib/api/server-client";
 
 export async function GET(request: Request) {
   try {
-    const client = getServerAspClient();
+    const client = await getServerAspClient();
     const { searchParams } = new URL(request.url);
     const userRef = searchParams.get("userRef");
     

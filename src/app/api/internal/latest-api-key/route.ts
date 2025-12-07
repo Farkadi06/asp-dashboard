@@ -1,14 +1,25 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getDashboardBaseUrl } from "@/lib/api/dashboard-client";
 import { InternalApiKey } from "@/lib/api/internal-client";
+import { getApiKeyByPrefix } from "@/lib/api/api-key-cache";
+
+export const dynamic = "force-dynamic";
 
 /**
- * GET /api/public/api-key
- * Fetches the current tenant's latest API key metadata
- * Uses the internal API to get the most recently created key
+ * Get the latest API key for the authenticated tenant
+ * 
+ * This endpoint:
+ * 1. Reads the session cookie
+ * 2. Calls GET /internal/api-keys
+ * 3. Selects the most recently created API key
+ * 4. Returns the full API key (if available) or prefix
+ * 
+ * Note: The backend list endpoint only returns prefixes, not full keys.
+ * The full key is only available when creating a new key.
+ * For now, we return the prefix and the caller must use it or fallback to env var.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const baseUrl = getDashboardBaseUrl();
     if (!baseUrl) {
@@ -45,12 +56,8 @@ export async function GET() {
           { status: 401 }
         );
       }
-      const errorData = await response.json().catch(() => ({}));
       return NextResponse.json(
-        { 
-          error: "FETCH_API_KEY_METADATA_FAILED", 
-          message: errorData.error?.message || "Failed to fetch API keys" 
-        },
+        { error: "Failed to fetch API keys" },
         { status: response.status }
       );
     }
@@ -59,7 +66,7 @@ export async function GET() {
 
     if (!keys || keys.length === 0) {
       return NextResponse.json(
-        { error: "NO_API_KEYS", message: "No API keys found. Please create an API key first." },
+        { error: "no_keys" },
         { status: 404 }
       );
     }
@@ -72,18 +79,33 @@ export async function GET() {
     });
 
     const latestKey = sortedKeys[0];
+    
+    console.log(`[LatestApiKey] Looking for key with prefix: "${latestKey.prefix}"`);
 
-    // Return metadata in the format expected by the access page
+    // Try to get the full key from cache (stored when key was created)
+    const fullKey = await getApiKeyByPrefix(latestKey.prefix);
+    
+    if (!fullKey) {
+      console.warn(
+        `[LatestApiKey] API key with prefix "${latestKey.prefix}" not found in cache. ` +
+        "This happens if the key was created before the cache was implemented or the server restarted. " +
+        "Please create a new API key to populate the cache."
+      );
+    } else {
+      console.log(`[LatestApiKey] Found full key for prefix "${latestKey.prefix}"`);
+    }
+    
     return NextResponse.json({
+      id: latestKey.id,
       prefix: latestKey.prefix,
+      apiKey: fullKey || null, // Full key from cache, or null if not cached
+      displayName: latestKey.displayName,
       createdAt: latestKey.createdAt,
-      lastUsed: latestKey.lastUsedAt || null,
     });
-  } catch (err: any) {
-    console.error("Failed to fetch API key metadata:", err);
-    const errorMessage = err?.message || err?.error?.message || String(err) || "Failed to fetch API key metadata";
+  } catch (error) {
+    console.error("[LatestApiKey] Error:", error);
     return NextResponse.json(
-      { error: "FETCH_API_KEY_METADATA_FAILED", message: errorMessage },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

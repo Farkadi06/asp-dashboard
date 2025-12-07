@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const client = getServerAspClient();
+    const client = await getServerAspClient();
 
     // Forward multipart/form-data without modification
     const backendResponse = await client.postFormData(
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
 
 export async function GET() {
   try {
-    const client = getServerAspClient();
+    const client = await getServerAspClient();
     const data = await client.get("/ingestions");
     return NextResponse.json(data, { status: 200 });
   } catch (err: any) {

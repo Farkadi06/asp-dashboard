@@ -7,7 +7,7 @@ import { getServerAspClient } from "@/lib/api/server-client";
  */
 export async function POST() {
   try {
-    const client = getServerAspClient();
+    const client = await getServerAspClient();
     const data = await client.post("/api-key/regenerate", {});
     return NextResponse.json(data, { status: 200 });
   } catch (err: any) {

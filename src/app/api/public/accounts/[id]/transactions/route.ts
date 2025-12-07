@@ -42,7 +42,7 @@ export async function GET(
     const query = queryParams.toString();
     const endpoint = `/accounts/${accountId}/transactions${query ? `?${query}` : ""}`;
 
-    const client = getServerAspClient();
+    const client = await getServerAspClient();
     const data = await client.get(endpoint);
     
     return NextResponse.json(data, { status: 200 });

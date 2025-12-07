@@ -7,7 +7,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const userRef = url.searchParams.get("userRef") ?? undefined;
 
-    const client = getServerAspClient();
+    const client = await getServerAspClient();
 
     const endpoint = userRef
       ? `/accounts?userRef=${encodeURIComponent(userRef)}`

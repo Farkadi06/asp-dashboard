@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const client = getServerAspClient();
+    const client = await getServerAspClient();
     const data = await client.get(`/ingestions/${id}`);
     return NextResponse.json(data, { status: 200 });
   } catch (err: any) {

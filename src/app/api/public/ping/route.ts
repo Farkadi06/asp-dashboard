@@ -10,7 +10,7 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const client = getServerAspClient();
+    const client = await getServerAspClient();
     const result = await client.ping();
 
     return NextResponse.json(result);

@@ -1,26 +1,33 @@
 import { redirect } from "next/navigation";
-import { fetchSession, fetchTenantMe, type TenantMeResponse } from "@/lib/api/dashboard-client";
+import { fetchSession, fetchTenantMe } from "@/lib/api/dashboard-client";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
-
-// Force dynamic rendering - dashboard requires authentication
-export const dynamic = "force-dynamic";
+import { SessionProvider } from "@/components/providers/session-provider";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Check session authentication
+  // Check session authentication (runs server-side now)
   const session = await fetchSession();
 
-  // Redirect to login if not authenticated
   if (!session.authenticated) {
     redirect("/login");
   }
 
-  // Optionally fetch tenant info (don't fail if null)
   const tenant = await fetchTenantMe();
 
-  // Render dashboard layout
-  return <DashboardShell>{children}</DashboardShell>;
+  const initialSession = {
+    authenticated: session.authenticated,
+    email: session.email,
+    tenant: tenant
+      ? { name: tenant.name, slug: tenant.slug }
+      : null,
+  };
+
+  return (
+    <SessionProvider initialSession={initialSession}>
+      <DashboardShell>{children}</DashboardShell>
+    </SessionProvider>
+  );
 }

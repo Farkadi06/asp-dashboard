@@ -23,7 +23,7 @@ export async function GET() {
       );
     }
 
-    const client = getServerAspClient();
+    const client = await getServerAspClient();
     const banks = await client.getBanks();
 
     return NextResponse.json(banks);

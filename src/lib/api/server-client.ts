@@ -158,26 +158,140 @@ export class AspServerClient {
 }
 
 /**
- * Get server-side API client instance
- * Reads API key from environment variables
+ * Get the latest API key from the internal endpoint
+ * This fetches the most recently created API key for the authenticated tenant
  * 
- * TEMPORARY: Hardcoded API key for testing
- * TODO: Remove hardcoded value and use environment variable
+ * @returns Full API key string or null if not available
  */
-export function getServerAspClient(): AspServerClient {
+async function getLatestApiKey(): Promise<string | null> {
+  try {
+    // Get the app URL for server-side fetch
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.NODE_ENV === "production"
+        ? "https://dashboard.asp-platform.com"
+        : "http://localhost:7000");
+
+    const cookieHeader = await getCookieHeader();
+    console.log("[ServerClient] Fetching latest API key, has cookie:", !!cookieHeader);
+
+    // Fetch from internal endpoint
+    const response = await fetch(`${appUrl}/api/internal/latest-api-key`, {
+      method: "GET",
+      credentials: "include",
+      // Note: cookies() are automatically forwarded in Next.js server components
+      // but for fetch() we need to manually forward them
+      headers: {
+        Cookie: cookieHeader,
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        // No API keys found - this is expected if user hasn't created any
+        console.log("[ServerClient] No API keys found in backend");
+        return null;
+      }
+      // Other errors - log but don't throw
+      const errorText = await response.text().catch(() => "");
+      console.warn("[ServerClient] Failed to fetch latest API key:", {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText,
+      });
+      return null;
+    }
+
+    const data = await response.json();
+    
+    if (data.apiKey) {
+      console.log("[ServerClient] Retrieved API key from cache (prefix:", data.prefix + ")");
+      return data.apiKey;
+    } else {
+      // Cache is empty - key was created before cache was implemented or server restarted
+      console.warn(
+        `[ServerClient] API key exists in backend (prefix: ${data.prefix}) but not in cache. ` +
+        "Full key is only available when creating a new key. " +
+        "Please create a new API key or set ASP_API_KEY environment variable."
+      );
+      return null;
+    }
+  } catch (error) {
+    console.warn("[ServerClient] Error fetching latest API key:", error);
+    return null;
+  }
+}
+
+/**
+ * Get cookie header for server-side fetch
+ * Extracts asp_session cookie and formats it for Cookie header
+ */
+async function getCookieHeader(): Promise<string> {
+  try {
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get("asp_session");
+    const hasCookie = !!sessionCookie;
+    if (hasCookie) {
+      console.log("[ServerClient] Found session cookie");
+    } else {
+      console.warn("[ServerClient] No session cookie found");
+    }
+    return sessionCookie ? `asp_session=${sessionCookie.value}` : "";
+  } catch (error) {
+    // If cookies() fails (e.g., in middleware), return empty
+    console.warn("[ServerClient] Failed to get cookie header:", error);
+    return "";
+  }
+}
+
+/**
+ * Get server-side API client instance
+ * 
+ * Priority:
+ * 1. Latest API key from internal endpoint (for authenticated users)
+ * 2. Environment variable (fallback)
+ * 3. Hardcoded test key (development only, temporary)
+ * 
+ * @returns AspServerClient instance
+ */
+export async function getServerAspClient(): Promise<AspServerClient> {
   const baseUrl =
     process.env.ASP_API_BASE_URL ||
     (process.env.NODE_ENV === "production"
       ? "https://api.asp-platform.com/v1"
       : "http://localhost:8080/v1");
 
-  // TEMPORARY: Hardcoded API key for testing
-  // TODO: Replace with actual API key from environment variable
-  const apiKey = process.env.ASP_API_KEY || "asp_sandbox_sk_test_1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+  // Try to get latest API key from internal endpoint
+  let apiKey: string | null = await getLatestApiKey();
 
+  // Fallback to environment variable
+  if (!apiKey) {
+    apiKey = process.env.ASP_API_KEY || process.env.NEXT_PUBLIC_ASP_API_KEY || null;
+  }
+
+  // Final fallback: hardcoded test key (development only, temporary)
+  if (!apiKey && process.env.NODE_ENV === "development") {
+    apiKey = "asp_sandbox_sk_test_1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+    console.warn("[ServerClient] Using hardcoded test API key. This should only be used in development.");
+  }
+
+  if (!apiKey) {
+    throw new Error(
+      "No API key available. Please create an API key in the dashboard or set ASP_API_KEY environment variable."
+    );
+  }
+
+  const keySource = apiKey !== process.env.ASP_API_KEY && apiKey !== process.env.NEXT_PUBLIC_ASP_API_KEY
+    ? (apiKey.startsWith("asp_sandbox_sk_test_") ? "hardcoded" : "cache")
+    : "env";
+  
   console.log("[ServerClient] Using API key:", {
-    fromEnv: !!process.env.ASP_API_KEY,
-    hardcoded: !process.env.ASP_API_KEY,
+    source: keySource,
+    fromLatest: keySource === "cache",
+    fromEnv: keySource === "env",
+    hardcoded: keySource === "hardcoded",
     apiKeyPrefix: apiKey?.slice(0, 30) + "...",
   });
 

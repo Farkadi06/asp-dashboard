@@ -236,7 +236,27 @@ export async function fetchAccounts(userRef?: string): Promise<PublicAccount[]> 
  */
 export async function fetchAccount(accountId: string): Promise<PublicAccount> {
   const baseUrl = getBaseUrl();
-  const res = await fetch(`${baseUrl}/api/public/accounts/${accountId}`);
+  
+  // Forward cookies when called from server components
+  const headers: HeadersInit = {};
+  if (typeof window === "undefined") {
+    // Server-side: forward cookies
+    try {
+      const { cookies } = await import("next/headers");
+      const cookieStore = await cookies();
+      const sessionCookie = cookieStore.get("asp_session");
+      if (sessionCookie) {
+        headers.Cookie = `asp_session=${sessionCookie.value}`;
+      }
+    } catch (error) {
+      // cookies() might fail in some contexts, ignore
+    }
+  }
+  
+  const res = await fetch(`${baseUrl}/api/public/accounts/${accountId}`, {
+    headers,
+    credentials: typeof window !== "undefined" ? "include" : undefined,
+  });
 
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
@@ -372,8 +392,27 @@ export async function fetchEnrichedTransactions(
   const baseUrl = getBaseUrl();
   const url = `${baseUrl}/api/public/accounts/${accountId}/enriched-transactions`;
   
+  // Forward cookies when called from server components
+  const headers: HeadersInit = {};
+  if (typeof window === "undefined") {
+    // Server-side: forward cookies
+    try {
+      const { cookies } = await import("next/headers");
+      const cookieStore = await cookies();
+      const sessionCookie = cookieStore.get("asp_session");
+      if (sessionCookie) {
+        headers.Cookie = `asp_session=${sessionCookie.value}`;
+      }
+    } catch (error) {
+      // cookies() might fail in some contexts, ignore
+    }
+  }
+  
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, {
+      headers,
+      credentials: typeof window !== "undefined" ? "include" : undefined,
+    });
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));

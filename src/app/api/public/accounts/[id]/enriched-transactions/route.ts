@@ -15,7 +15,7 @@ export async function GET(
       );
     }
 
-    const client = getServerAspClient();
+    const client = await getServerAspClient();
     
     // Build query string from search params if needed
     const url = new URL(request.url);
